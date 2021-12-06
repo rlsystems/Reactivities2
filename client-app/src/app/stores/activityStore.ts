@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { makeAutoObservable, runInAction } from "mobx";
 import agent from "../api/agent";
 import { Activity } from "../models/activity";
@@ -9,7 +10,7 @@ export default class ActivityStore {
     selectedActivity: Activity | undefined = undefined;
     editMode: boolean = false;
     loading: boolean = false;
-    loadingInitial: boolean = true;
+    loadingInitial: boolean = false;
 
     constructor() {
         makeAutoObservable(this) //Mobx will do the above code by inference
@@ -17,16 +18,16 @@ export default class ActivityStore {
 
 
     //computed Property
-    get activitiesByDate() {
+    get activitiesByDate() { //sorts the array
         return Array.from(this.activityRegistry.values()).sort((a, b) =>
-            Date.parse(a.date) - Date.parse(b.date));
+            a.date!.getTime() - b.date!.getTime());
     }
 
     //computed
     get groupedActivities() {
         return Object.entries(
             this.activitiesByDate.reduce((activities, activity) => {
-                const date = activity.date;
+                const date = format(activity.date!, 'dd MMM yyyy');
                 activities[date] = activities[date] ? [...activities[date], activity] : [activity];
                 return activities;
             }, {} as {[key: string]: Activity[]})
@@ -76,8 +77,11 @@ export default class ActivityStore {
     private getActivity = (id: string) => {
         return this.activityRegistry.get(id);
     }
-    private setActivity = (activity: Activity) => {
-        activity.date = activity.date.split('T')[0];
+    private setActivity = (activity: Activity) => { //this handles date formatting (for each object)
+
+        //activity.date = activity.date.split('T')[0]; //this cuts off time portion of date
+
+        activity.date = new Date(activity.date!);
         this.activityRegistry.set(activity.id, activity);
     }
     setLoadingInitial = (state: boolean) => {
